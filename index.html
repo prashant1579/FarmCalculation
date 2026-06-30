@@ -514,8 +514,10 @@
     </div>
 
     <p style="font-size:0.78rem;color:var(--muted);margin-top:8px" class="no-print" id="apiNote">
-      Report is saved to the local SQLite database via the backend API (http://localhost:5050).
-      <strong>Start the server:</strong> <code>python server.py</code>
+      Reports are saved on this device's browser storage — no internet connection or server required.
+    </p>
+    <p style="font-size:0.78rem;color:var(--warn);margin-top:4px;display:none" class="no-print" id="storageWarning">
+      ⚠️ This browser is blocking persistent storage (e.g. Private Browsing mode), so saved reports will only last for this session and won't be available next time you open the page.
     </p>
   </div>
 
@@ -631,7 +633,7 @@
 /* ══════════════════════════════════════════════════════════════
    STATE
 ══════════════════════════════════════════════════════════════ */
-const API = 'http://localhost:5050/api';
+const STORAGE_KEY = 'farmProfitClarity.reports';
 let cropSeq = 0;
 let currentReportId = null;
 
@@ -656,6 +658,80 @@ function toast(msg, isError = false) {
   el.className = 'status-bar show' + (isError ? ' error' : '');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOCAL STORAGE "DATABASE" (replaces backend API — fully offline)
+   Falls back to in-memory storage if localStorage is unavailable
+   (e.g. some iOS Safari private-browsing or file:// contexts) so the
+   app still works for the current session instead of throwing.
+══════════════════════════════════════════════════════════════ */
+let _memoryFallback = null;
+
+function _storageAvailable() {
+  try {
+    const testKey = '__farm_profit_test__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+const _hasStorage = _storageAvailable();
+if (!_hasStorage) {
+  _memoryFallback = [];
+  console.warn('localStorage unavailable — using in-memory storage for this session only.');
+  window.addEventListener('DOMContentLoaded', () => {
+    const warningEl = document.getElementById('storageWarning');
+    if (warningEl) warningEl.style.display = '';
+  });
+}
+
+function loadAllReports() {
+  if (!_hasStorage) return _memoryFallback || [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveAllReports(reports) {
+  if (!_hasStorage) { _memoryFallback = reports; return; }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+  } catch (e) {
+    // Quota exceeded or blocked mid-session — keep working in memory rather than crash.
+    _memoryFallback = reports;
+  }
+}
+
+function saveReportLocally(payload, computedCrops) {
+  const reports = loadAllReports();
+  const nextId = reports.length ? Math.max(...reports.map(r => r.id)) + 1 : 1;
+  const record = {
+    id: nextId,
+    farmer_name: payload.farmer_name,
+    county: payload.county,
+    year: payload.year,
+    crops: payload.crops,
+    created_at: new Date().toISOString(),
+  };
+  reports.unshift(record);
+  saveAllReports(reports);
+  return record;
+}
+
+function getReportById(id) {
+  return loadAllReports().find(r => r.id === id) || null;
+}
+
+function deleteReportLocally(id) {
+  const reports = loadAllReports().filter(r => r.id !== id);
+  saveAllReports(reports);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -752,7 +828,7 @@ function clearForm() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   SAVE & GENERATE (API)
+   SAVE & GENERATE (fully offline — no server required)
 ══════════════════════════════════════════════════════════════ */
 async function saveAndGenerate() {
   const crops = collectCrops();
@@ -771,30 +847,16 @@ async function saveAndGenerate() {
   icon.innerHTML = '<span class="loader"></span>';
 
   try {
-    const res = await fetch(API + '/reports', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Server error');
+    const computed = crops.map(computeCrop);
+    const record = saveReportLocally(payload, computed);
     icon.textContent = '▶';
-    renderReport(data.report, data.crops);
-    currentReportId = data.report.id;
-    toast('✅ Report saved — ID #' + data.report.id);
+    renderReport(record, computed);
+    currentReportId = record.id;
+    toast('✅ Report saved — ID #' + record.id);
     switchTab('report');
   } catch (err) {
     icon.textContent = '▶';
-    // Offline fallback: compute in-browser
-    if (err.message.includes('fetch') || err.message.includes('Failed') || err.message.includes('NetworkError')) {
-      toast('⚠️ Offline mode — report not saved to DB', true);
-      const computed = crops.map(computeCrop);
-      renderReport(payload, computed);
-      currentReportId = null;
-      switchTab('report');
-    } else {
-      toast('Error: ' + err.message, true);
-    }
+    toast('Error: ' + err.message, true);
   }
 }
 
@@ -923,60 +985,52 @@ function renderReport(report, crops) {
 /* ══════════════════════════════════════════════════════════════
    HISTORY
 ══════════════════════════════════════════════════════════════ */
-async function loadHistory() {
+/* ══════════════════════════════════════════════════════════════
+   HISTORY (fully offline — reads from this device's browser storage)
+══════════════════════════════════════════════════════════════ */
+function loadHistory() {
   const el = document.getElementById('historyList');
-  el.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><p>Fetching from database…</p></div>';
-  try {
-    const res  = await fetch(`${API}/api/reports`);
-    const data = await res.json();
-    if (!data.length) {
-      el.innerHTML = '<div class="empty"><div class="empty-icon">🌿</div><p>No reports yet. Generate one from the New Report tab.</p></div>';
-      return;
-    }
-    el.innerHTML = data.map(r => `
-      <div class="history-row">
-        <div>
-          <div style="font-size:1.5rem">🌾</div>
-        </div>
-        <div class="history-info">
-          <div class="history-name">${r.farmer_name} — ${r.year}</div>
-          <div class="history-meta">${r.county} &nbsp;·&nbsp; ${new Date(r.created_at).toLocaleDateString()}</div>
-        </div>
-        <div>
-          <button class="btn btn-ghost btn-sm" onclick="loadReport(${r.id})">View</button>
-          &nbsp;
-          <button class="btn btn-sm" style="background:#fde0e0;color:var(--danger)" onclick="deleteReport(${r.id})">🗑</button>
-        </div>
-      </div>`).join('');
-  } catch(e) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>Could not connect to backend. Is <code>python server.py</code> running?</p></div>';
+  const data = loadAllReports();
+  if (!data.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🌿</div><p>No reports yet. Generate one from the New Report tab.</p></div>';
+    return;
   }
+  el.innerHTML = data.map(r => `
+    <div class="history-row">
+      <div>
+        <div style="font-size:1.5rem">🌾</div>
+      </div>
+      <div class="history-info">
+        <div class="history-name">${r.farmer_name} — ${r.year}</div>
+        <div class="history-meta">${r.county} &nbsp;·&nbsp; ${new Date(r.created_at).toLocaleDateString()}</div>
+      </div>
+      <div>
+        <button class="btn btn-ghost btn-sm" onclick="loadReport(${r.id})">View</button>
+        &nbsp;
+        <button class="btn btn-sm" style="background:#fde0e0;color:var(--danger)" onclick="deleteReport(${r.id})">🗑</button>
+      </div>
+    </div>`).join('');
 }
 
-async function loadReport(id) {
-  try {
-    const res  = await fetch(`${API}/api/reports`);
-    const data = await res.json();
-    currentReportId = id;
-    renderReport(data.report, data.crops);
-    switchTab('report');
-  } catch(e) {
-    toast('Could not load report #' + id, true);
-  }
+function loadReport(id) {
+  const record = getReportById(id);
+  if (!record) { toast('Could not load report #' + id, true); return; }
+  currentReportId = id;
+  const computed = record.crops.map(computeCrop);
+  renderReport(record, computed);
+  switchTab('report');
 }
 
-async function deleteReport(id) {
+function deleteReport(id) {
   if (!confirm('Delete report #' + id + '?')) return;
-  try {
-    await fetch(API + '/reports/' + id, { method: 'DELETE' });
-    toast('Report #' + id + ' deleted.');
-    loadHistory();
-  } catch(e) { toast('Delete failed', true); }
+  deleteReportLocally(id);
+  toast('Report #' + id + ' deleted.');
+  loadHistory();
 }
 
-async function deleteCurrentReport() {
+function deleteCurrentReport() {
   if (!currentReportId) { toast('No saved report to delete.', true); return; }
-  await deleteReport(currentReportId);
+  deleteReport(currentReportId);
   document.getElementById('reportEmpty').style.display = '';
   document.getElementById('reportContent').style.display = 'none';
   currentReportId = null;
