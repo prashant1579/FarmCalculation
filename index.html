@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Farm Profit Clarity</title>
+  <style>
+    /* ── Design tokens ─────────────────────────────────────────────── */
+    :root {
+      --soil:      #2C1A0E;   /* near-black brown — primary text */
+      --field:     #1B4D2E;   /* deep field green — header/accents */
+      --sprout:    #4A8C5C;   /* mid green — highlights */
+      --harvest:   #C8963E;   /* amber wheat — signature accent */
+      --sky:       #E8F4F0;   /* pale mint — page bg */
+      --card:      #FFFFFF;
+      --border:    #D4E4DB;
+      --muted:     #6B8070;
+      --danger:    #B33A3A;
+      --warn:      #B87A1A;
+      --ok:        #2A6E45;
+
+      --r: 8px;
+      --shadow: 0 2px 12px rgba(27,77,46,.1);
+      --shadow-lg: 0 6px 28px rgba(27,77,46,.14);
+    }
+
+    /* ── Reset & base ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--sky);
+      color: var(--soil);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Header ────────────────────────────────────────────────────── */
+    header {
+      background: var(--field);
+      color: #fff;
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 2px 16px rgba(0,0,0,.25);
+    }
+    .header-inner {
+      max-width: 1160px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 14px 20px;
+      flex-wrap: wrap;
+    }
+    .logo-mark {
+      width: 42px; height: 42px;
+      background: var(--harvest);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(200,150,62,.4);
+    }
+    .header-titles h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+    .header-titles p {
+      font-size: 0.78rem;
+      opacity: .75;
+      margin-top: 1px;
+    }
+    .header-nav {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .nav-tab {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #fff;
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background .15s;
+      text-decoration: none;
+    }
+    .nav-tab:hover, .nav-tab.active { background: rgba(255,255,255,.22); }
+
+    /* ── Layout ────────────────────────────────────────────────────── */
+    .page { max-width: 1160px; margin: 0 auto; padding: 28px 20px 60px; }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 5px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 9px 16px;
+      border: none;
+      border-radius: calc(var(--r) - 2px);
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--muted);
+      transition: all .15s;
+    }
+    .tab-btn.active {
+      background: var(--field);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(27,77,46,.25);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+    .card-head {
+      background: linear-gradient(135deg, #f0f8f3, #fff);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-head h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--field);
+    }
+    .card-head .card-icon { font-size: 1.2rem; }
+    .card-body { padding: 18px; }
+
+    /* Form grid */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .form-grid-3 { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label {
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .field input {
+      padding: 8px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: var(--soil);
+      background: #fafcfb;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .field input:focus {
+      outline: none;
+      border-color: var(--sprout);
+      box-shadow: 0 0 0 3px rgba(74,140,92,.12);
+      background: #fff;
+    }
+
+    /* ── Crop sections ─────────────────────────────────────────────── */
+    .crop-section {
+      border: 1.5px solid var(--border);
+      border-radius: var(--r);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .crop-head {
+      background: linear-gradient(90deg, #f5fbf7, #fff);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .crop-num {
+      width: 26px; height: 26px;
+      background: var(--harvest);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .crop-name-input {
+      border: none;
+      background: transparent;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--field);
+      flex: 1;
+      min-width: 0;
+    }
+    .crop-name-input:focus { outline: none; border-bottom: 2px solid var(--sprout); }
+    .btn-remove-crop {
+      border: none;
+      background: transparent;
+      color: #c0b0a0;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color .15s, background .15s;
+    }
+    .btn-remove-crop:hover { color: var(--danger); background: #fff0f0; }
+    .crop-body { padding: 14px; }
+    .cost-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--sprout);
+      margin: 12px 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .cost-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Buttons ───────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      border-radius: 999px;
+      padding: 9px 18px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--field); color: #fff; }
+    .btn-primary:hover { background: #143d24; box-shadow: 0 3px 12px rgba(27,77,46,.3); }
+    .btn-harvest { background: var(--harvest); color: #fff; }
+    .btn-harvest:hover { background: #a87a2e; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--sprout);
+      border: 1.5px solid var(--sprout);
+    }
+    .btn-ghost:hover { background: #f0f8f3; }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #8f2e2e; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+
+    /* ── Badges ────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 0.73rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+    .badge-ok  { background: #d6f0e0; color: var(--ok); }
+    .badge-warn{ background: #fdefd4; color: var(--warn); }
+    .badge-bad { background: #fde0e0; color: var(--danger); }
+    .badge-na  { background: #eee; color: #888; }
+
+    /* ── Tables ─────────────────────────────────────────────────────── */
+    .tbl-wrap { overflow-x: auto; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 8px 10px; border: 1px solid var(--border); text-align: right; }
+    th { background: #f0f8f3; color: var(--field); font-weight: 700; text-align: center; }
+    td.left { text-align: left; font-weight: 600; white-space: nowrap; }
+    tr:nth-child(even) td { background: #fafcfb; }
+    .money { font-variant-numeric: tabular-nums; font-family: 'Courier New', monospace; }
+    .pos { color: var(--ok); font-weight: 700; }
+    .neg { color: var(--danger); font-weight: 700; }
+
+    /* ── Summary cards ──────────────────────────────────────────────── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 12px 0;
+    }
+    .stat-box {
+      background: linear-gradient(135deg, #f5fbf7, #fff);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-box .stat-val {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--field);
+      line-height: 1.2;
+    }
+    .stat-box .stat-label {
+      font-size: 0.73rem;
+      color: var(--muted);
+      margin-top: 3px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .stat-box.highlight { border-color: var(--harvest); }
+    .stat-box.highlight .stat-val { color: var(--harvest); }
+
+    /* ── History list ───────────────────────────────────────────────── */
+    .history-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      transition: background .12s;
+    }
+    .history-row:last-child { border-bottom: none; }
+    .history-row:hover { background: #f5fbf7; }
+    .history-info { flex: 1; min-width: 0; }
+    .history-name { font-weight: 700; font-size: 0.9rem; color: var(--field); }
+    .history-meta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .history-crops { font-size: 0.78rem; color: var(--sprout); }
+
+    /* ── Report area ────────────────────────────────────────────────── */
+    .report-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, var(--field), #2a6e45);
+      color: #fff;
+      border-radius: var(--r) var(--r) 0 0;
+    }
+    .report-meta .meta-item { font-size: 0.85rem; }
+    .report-meta .meta-val { font-weight: 700; font-size: 1rem; }
+
+    .decisions-list { padding-left: 18px; }
+    .decisions-list li { margin-bottom: 6px; font-size: 0.9rem; }
+
+    .print-only { display: none; }
+    .no-print {}
+
+    /* ── Status bar ─────────────────────────────────────────────────── */
+    .status-bar {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--field);
+      color: #fff;
+      padding: 10px 22px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-lg);
+      z-index: 999;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+      white-space: nowrap;
+    }
+    .status-bar.show { transform: translateX(-50%) translateY(0); }
+    .status-bar.error { background: var(--danger); }
+
+    /* ── Empty state ─────────────────────────────────────────────────── */
+    .empty {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+    }
+    .empty .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty p { font-size: 0.9rem; }
+
+    /* ── Loader ──────────────────────────────────────────────────────── */
+    .loader { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Crop count badge ────────────────────────────────────────────── */
+    .crop-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--harvest);
+      color: #fff;
+      border-radius: 999px;
+      min-width: 22px;
+      height: 22px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0 6px;
+    }
+
+    /* ── Print ────────────────────────────────────────────────────────── */
+    @media print {
+      header, .tab-bar, .no-print, .status-bar { display: none !important; }
+      .tab-panel { display: block !important; }
+      body { background: #fff; }
+      .card { box-shadow: none; border: 1px solid #ccc; }
+      .print-only { display: block; }
+    }
+
+    @media (max-width: 600px) {
+      .header-inner { padding: 10px 14px; }
+      .btn-row { gap: 7px; }
+      .tab-btn { padding: 8px 10px; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo-mark">🌾</div>
+    <div class="header-titles">
+      <h1>Farm Profit Clarity</h1>
+      <p>Multi-crop financial analysis — stored in your local database</p>
+    </div>
+    <nav class="header-nav no-print">
+      <a class="nav-tab active" href="#" onclick="switchTab('form',this)">New Report</a>
+      <a class="nav-tab" href="#" onclick="switchTab('history',this)">History</a>
+      <a class="nav-tab" href="#" onclick="switchTab('report',this)">Report</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- ── TAB BAR (mobile-friendly) ── -->
+  <div class="tab-bar no-print">
+    <button class="tab-btn active" onclick="switchTab('form',this)">📋 New Report</button>
+    <button class="tab-btn" onclick="switchTab('history',this)">📁 History</button>
+    <button class="tab-btn" onclick="switchTab('report',this)" id="reportTabBtn">📊 Report</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TAB: FORM                                               -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="tab-panel active" id="tab-form">
+
+    <!-- General Info -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-icon">🏡</span>
+        <h2>Farm &amp; Season</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="field">
+            <label>Farmer / Operation name</label>
+            <input type="text" id="farmerName" placeholder="e.g. Green Acre Farms" />
+          </div>
+          <div class="field">
+            <label>County / Region</label>
+            <input type="text" id="county" placeholder="e.g. McLean County, IL" />
+          </div>
+          <div class="field">
+            <label>Crop year</label>
+            <input type="number" id="year" value="2025" min="2000" max="2100" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Crops -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-icon">🌱</span>
+        <h2>Crops &nbsp;<span class="crop-count" id="cropCount">1</span></h2>
+        <button class="btn btn-ghost btn-sm no-print" style="margin-left:auto" onclick="addCrop()">
+          + Add Crop
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="cropsContainer"></div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-top:8px">
+          Costs are per-acre. Add as many crops as needed — wheat, cotton, rice, etc.
+        </p>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="btn-row no-print">
+      <button class="btn btn-primary" onclick="saveAndGenerate()">
+        <span id="saveIcon">▶</span> Save &amp; Generate Report
+      </button>
+      <button class="btn btn-ghost" onclick="clearForm()">✕ Clear</button>
+      <button class="btn btn-ghost" onclick="window.print()">🖨 Print / PDF</button>
+    </div>
+
+    <p style="font-size:0.78rem;color:var(--muted);margin-top:8px" class="no-print" id="apiNote">
+      Report is saved to the local SQLite database via the backend API (http://localhost:5050).
+      <strong>Start the server:</strong> <code>python server.py</code>
+    </p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TAB: HISTORY                                            -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-history">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-icon">📁</span>
+        <h2>Saved Reports</h2>
+        <button class="btn btn-ghost btn-sm no-print" style="margin-left:auto" onclick="loadHistory()">↺ Refresh</button>
+      </div>
+      <div id="historyList">
+        <div class="empty">
+          <div class="empty-icon">🌿</div>
+          <p>Loading reports from database…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TAB: REPORT                                             -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-report">
+
+    <div id="reportEmpty" class="card">
+      <div class="card-body">
+        <div class="empty">
+          <div class="empty-icon">📊</div>
+          <p>Generate a report first, or load one from History.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="reportContent" style="display:none">
+      <!-- meta bar -->
+      <div class="report-meta" id="rMeta"></div>
+
+      <!-- A. Crop Summary Cards -->
+      <div class="card" style="border-radius:0 0 var(--r) var(--r)">
+        <div class="card-head"><span class="card-icon">📊</span><h2>A. Per-Crop Summary</h2></div>
+        <div class="card-body">
+          <div class="summary-grid" id="rSummaryCards"></div>
+        </div>
+      </div>
+
+      <!-- B. Full Comparison Table -->
+      <div class="card">
+        <div class="card-head"><span class="card-icon">📋</span><h2>B. Comparative Table</h2></div>
+        <div class="card-body">
+          <div class="tbl-wrap">
+            <table id="rCompareTable"></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- C. Fertilizer Scenario -->
+      <div class="card">
+        <div class="card-head"><span class="card-icon">⚗️</span><h2>C. Fertilizer +10% Scenario</h2></div>
+        <div class="card-body">
+          <div class="tbl-wrap">
+            <table id="rFertTable"></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- D. Farm Totals -->
+      <div class="card">
+        <div class="card-head"><span class="card-icon">🏦</span><h2>D. Farm Totals</h2></div>
+        <div class="card-body">
+          <div class="summary-grid" id="rTotals"></div>
+        </div>
+      </div>
+
+      <!-- E. Recommended Decisions -->
+      <div class="card">
+        <div class="card-head"><span class="card-icon">💡</span><h2>E. Recommended Decisions</h2></div>
+        <div class="card-body">
+          <ul class="decisions-list" id="rDecisions"></ul>
+        </div>
+      </div>
+
+      <!-- F. Proven Practices -->
+      <div class="card">
+        <div class="card-head"><span class="card-icon">🌿</span><h2>F. Long-term Financial Levers</h2></div>
+        <div class="card-body">
+          <ul style="padding-left:18px;font-size:0.9rem;color:var(--muted)">
+            <li><strong>Manure / organic amendments:</strong> may reduce synthetic fertilizer cost over time.</li>
+            <li><strong>Cover crops:</strong> can improve soil health and reduce input needs in future seasons.</li>
+            <li><strong>Non-GMO seed:</strong> in some regions lowers seed cost/acre while maintaining acceptable yield.</li>
+            <li><strong>Crop diversification:</strong> spreading risk across multiple crop types reduces price exposure.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="btn-row no-print" style="margin-top:20px">
+        <button class="btn btn-harvest" onclick="window.print()">🖨 Print / Save PDF</button>
+        <button class="btn btn-ghost" onclick="deleteCurrentReport()" id="btnDeleteReport">🗑 Delete Report</button>
+        <button class="btn btn-ghost" onclick="switchTab('form')">+ New Report</button>
+      </div>
+    </div>
+
+  </div><!-- end tab-report -->
+
+</div><!-- end .page -->
+
+<!-- Status toast -->
+<div class="status-bar" id="statusBar"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════ */
+const API = 'http://localhost:5050/api';
+let cropSeq = 0;
+let currentReportId = null;
+
+/* ══════════════════════════════════════════════════════════════
+   TABS
+══════════════════════════════════════════════════════════════ */
+function switchTab(name, triggerEl) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn, .nav-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (triggerEl) triggerEl.classList.add('active');
+  if (name === 'history') loadHistory();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STATUS TOAST
+══════════════════════════════════════════════════════════════ */
+let toastTimer;
+function toast(msg, isError = false) {
+  const el = document.getElementById('statusBar');
+  el.textContent = msg;
+  el.className = 'status-bar show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CROP MANAGEMENT
+══════════════════════════════════════════════════════════════ */
+const DEFAULT_CROPS = [
+  { name: 'Corn',      acres: 350, yield_bu: 185, price_bu: 4.35, seed: 95,  fertilizer: 145, chemicals: 42, fuel: 28, labor: 35, other: 18 },
+  { name: 'Soybeans',  acres: 280, yield_bu: 52,  price_bu: 11.2, seed: 65,  fertilizer: 60,  chemicals: 38, fuel: 22, labor: 28, other: 14 },
+];
+
+function addCrop(data = {}) {
+  cropSeq++;
+  const id = 'crop-' + cropSeq;
+  const n = cropSeq;
+
+  const fields = ['acres','yield_bu','price_bu','seed','fertilizer','chemicals','fuel','labor','other'];
+  const inputs = fields.map(f => `
+    <div class="field">
+      <label>${fieldLabel(f)}</label>
+      <input type="number" id="${id}-${f}" min="0" step="0.01" value="${data[f] !== undefined ? data[f] : ''}" />
+    </div>`).join('');
+
+  const html = `
+  <div class="crop-section" id="${id}">
+    <div class="crop-head">
+      <div class="crop-num">${n}</div>
+      <input class="crop-name-input" type="text" id="${id}-name" value="${data.name || 'Crop ' + n}" />
+      <button class="btn-remove-crop" title="Remove crop" onclick="removeCrop('${id}')">✕</button>
+    </div>
+    <div class="crop-body">
+      <div class="form-grid form-grid-3">
+        <div class="field"><label>Acres</label><input type="number" id="${id}-acres" min="0" step="0.01" value="${data.acres||''}" /></div>
+        <div class="field"><label>Yield / acre (bu)</label><input type="number" id="${id}-yield_bu" min="0" step="0.01" value="${data.yield_bu||''}" /></div>
+        <div class="field"><label>Price / bushel ($)</label><input type="number" id="${id}-price_bu" min="0" step="0.01" value="${data.price_bu||''}" /></div>
+      </div>
+      <div class="cost-label">Cost per acre (USD)</div>
+      <div class="form-grid form-grid-3">
+        <div class="field"><label>Seed</label><input type="number" id="${id}-seed" min="0" step="0.01" value="${data.seed||''}" /></div>
+        <div class="field"><label>Fertilizer</label><input type="number" id="${id}-fertilizer" min="0" step="0.01" value="${data.fertilizer||''}" /></div>
+        <div class="field"><label>Chemicals</label><input type="number" id="${id}-chemicals" min="0" step="0.01" value="${data.chemicals||''}" /></div>
+        <div class="field"><label>Fuel</label><input type="number" id="${id}-fuel" min="0" step="0.01" value="${data.fuel||''}" /></div>
+        <div class="field"><label>Labor</label><input type="number" id="${id}-labor" min="0" step="0.01" value="${data.labor||''}" /></div>
+        <div class="field"><label>Other</label><input type="number" id="${id}-other" min="0" step="0.01" value="${data.other||''}" /></div>
+      </div>
+    </div>
+  </div>`;
+
+  const container = document.getElementById('cropsContainer');
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  container.appendChild(div.firstElementChild);
+  updateCropCount();
+}
+
+function removeCrop(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  updateCropCount();
+}
+
+function updateCropCount() {
+  const n = document.querySelectorAll('.crop-section').length;
+  document.getElementById('cropCount').textContent = n;
+}
+
+function fieldLabel(f) {
+  const map = { acres:'Acres', yield_bu:'Yield/acre (bu)', price_bu:'Price/bu ($)',
+    seed:'Seed', fertilizer:'Fertilizer', chemicals:'Chemicals',
+    fuel:'Fuel', labor:'Labor', other:'Other' };
+  return map[f] || f;
+}
+
+function collectCrops() {
+  return Array.from(document.querySelectorAll('.crop-section')).map(el => {
+    const id = el.id;
+    const g = f => { const inp = document.getElementById(id+'-'+f); return inp ? parseFloat(inp.value)||0 : 0; };
+    return {
+      name:       document.getElementById(id+'-name')?.value?.trim() || 'Crop',
+      acres:      g('acres'), yield_bu: g('yield_bu'), price_bu: g('price_bu'),
+      seed:       g('seed'),  fertilizer: g('fertilizer'), chemicals: g('chemicals'),
+      fuel:       g('fuel'),  labor: g('labor'), other: g('other'),
+    };
+  });
+}
+
+function clearForm() {
+  document.getElementById('farmerName').value = '';
+  document.getElementById('county').value = '';
+  document.getElementById('year').value = new Date().getFullYear();
+  document.getElementById('cropsContainer').innerHTML = '';
+  cropSeq = 0;
+  DEFAULT_CROPS.forEach(c => addCrop(c));
+  updateCropCount();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SAVE & GENERATE (API)
+══════════════════════════════════════════════════════════════ */
+async function saveAndGenerate() {
+  const crops = collectCrops();
+  if (!crops.length) { toast('Add at least one crop.', true); return; }
+  const hasAcres = crops.some(c => c.acres > 0);
+  if (!hasAcres) { toast('Enter acres for at least one crop.', true); return; }
+
+  const payload = {
+    farmer_name: document.getElementById('farmerName').value || 'Unknown',
+    county:      document.getElementById('county').value || '-',
+    year:        parseInt(document.getElementById('year').value) || new Date().getFullYear(),
+    crops,
+  };
+
+  const icon = document.getElementById('saveIcon');
+  icon.innerHTML = '<span class="loader"></span>';
+
+  try {
+    const res = await fetch(API + '/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Server error');
+    icon.textContent = '▶';
+    renderReport(data.report, data.crops);
+    currentReportId = data.report.id;
+    toast('✅ Report saved — ID #' + data.report.id);
+    switchTab('report');
+  } catch (err) {
+    icon.textContent = '▶';
+    // Offline fallback: compute in-browser
+    if (err.message.includes('fetch') || err.message.includes('Failed') || err.message.includes('NetworkError')) {
+      toast('⚠️ Offline mode — report not saved to DB', true);
+      const computed = crops.map(computeCrop);
+      renderReport(payload, computed);
+      currentReportId = null;
+      switchTab('report');
+    } else {
+      toast('Error: ' + err.message, true);
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   IN-BROWSER COMPUTE (offline fallback)
+══════════════════════════════════════════════════════════════ */
+function computeCrop(c) {
+  const cost = c.seed + c.fertilizer + c.chemicals + c.fuel + c.labor + c.other;
+  const income = c.yield_bu * c.price_bu;
+  const margin = income - cost;
+  const cpb = c.yield_bu > 0 ? cost / c.yield_bu : 0;
+  const be  = cpb;
+  const ratio = be > 0 ? c.price_bu / be : 0;
+  const relation = be <= 0 ? 'N/A' : ratio >= 1.15 ? 'Favorable' : ratio >= 0.95 ? 'Tight' : 'Unfavorable';
+  return { ...c, cost_per_acre: cost, income_per_acre: income, margin_per_acre: margin,
+    total_margin: margin * c.acres, cost_per_bu: cpb, break_even: be, relation };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RENDER REPORT
+══════════════════════════════════════════════════════════════ */
+function $m(n) { return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2); }
+function cls(n) { return n >= 0 ? 'pos' : 'neg'; }
+function badgeClass(r) {
+  if (r === 'Favorable') return 'badge-ok';
+  if (r === 'Tight') return 'badge-warn';
+  if (r === 'Unfavorable') return 'badge-bad';
+  return 'badge-na';
+}
+
+function renderReport(report, crops) {
+  /* Meta bar */
+  document.getElementById('rMeta').innerHTML = `
+    <div class="meta-item"><div class="meta-val">${report.farmer_name || report.farmerName || '-'}</div><div>Farmer</div></div>
+    <div class="meta-item"><div class="meta-val">${report.county || '-'}</div><div>County</div></div>
+    <div class="meta-item"><div class="meta-val">${report.year || '-'}</div><div>Year</div></div>
+    <div class="meta-item"><div class="meta-val">${crops.length}</div><div>Crops</div></div>
+    ${report.id ? `<div class="meta-item"><div class="meta-val">#${report.id}</div><div>Report ID</div></div>` : ''}
+    <div class="meta-item" style="margin-left:auto"><span style="font-size:0.75rem;opacity:.75">${new Date().toLocaleDateString()}</span></div>
+  `;
+
+  /* A. Summary Cards */
+  const cards = crops.map(c => `
+    <div class="stat-box ${c.margin_per_acre >= 0 ? '' : 'highlight'}">
+      <div style="font-size:0.8rem;font-weight:700;color:var(--field);margin-bottom:6px">${c.name}</div>
+      <div class="stat-val ${cls(c.margin_per_acre)}">${$m(c.margin_per_acre)}</div>
+      <div class="stat-label">Margin / acre</div>
+      <div style="margin-top:8px"><span class="badge ${badgeClass(c.relation)}">${c.relation}</span></div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:6px">
+        Break-even: <strong>${$m(c.break_even)}</strong> /bu<br>
+        Total margin: <strong class="${cls(c.total_margin)}">${$m(c.total_margin)}</strong>
+      </div>
+    </div>`).join('');
+  document.getElementById('rSummaryCards').innerHTML = cards;
+
+  /* B. Comparative table */
+  const rows = [
+    ['Acres planted', c => c.acres.toFixed(0)],
+    ['Cost / acre', c => $m(c.cost_per_acre)],
+    ['Income / acre', c => $m(c.income_per_acre)],
+    ['Margin / acre', c => `<span class="${cls(c.margin_per_acre)}">${$m(c.margin_per_acre)}</span>`],
+    ['Total margin', c => `<span class="${cls(c.total_margin)}">${$m(c.total_margin)}</span>`],
+    ['Cost / bushel', c => $m(c.cost_per_bu)],
+    ['Break-even price', c => $m(c.break_even)],
+    ['Current price', c => $m(c.price_bu)],
+    ['Price vs B/E', c => `<span class="badge ${badgeClass(c.relation)}">${c.relation}</span>`],
+  ];
+  const thead = `<thead><tr><th></th>${crops.map(c=>`<th>${c.name}</th>`).join('')}</tr></thead>`;
+  const tbody = '<tbody>' + rows.map(([label, fn]) =>
+    `<tr><td class="left">${label}</td>${crops.map(c=>`<td class="money">${fn(c)}</td>`).join('')}</tr>`
+  ).join('') + '</tbody>';
+  document.getElementById('rCompareTable').innerHTML = thead + tbody;
+
+  /* C. Fertilizer +10% */
+  const fHead = `<thead><tr><th>Crop</th><th>Current Margin/acre</th><th>With +10% Fertilizer</th><th>Δ Impact</th></tr></thead>`;
+  const fBody = '<tbody>' + crops.map(c => {
+    const newCost = c.cost_per_acre - c.fertilizer + c.fertilizer * 1.1;
+    const newMargin = c.income_per_acre - newCost;
+    const delta = newMargin - c.margin_per_acre;
+    return `<tr>
+      <td class="left">${c.name}</td>
+      <td class="money">${$m(c.margin_per_acre)}</td>
+      <td class="money ${cls(newMargin)}">${$m(newMargin)}</td>
+      <td class="money ${cls(delta)}">${delta <= 0 ? '' : '+'}${$m(delta)}</td>
+    </tr>`;
+  }).join('') + '</tbody>';
+  document.getElementById('rFertTable').innerHTML = fHead + fBody;
+
+  /* D. Farm Totals */
+  const totalAcres = crops.reduce((s,c)=>s+c.acres,0);
+  const totalMargin = crops.reduce((s,c)=>s+c.total_margin,0);
+  const totalIncome = crops.reduce((s,c)=>s+(c.income_per_acre*c.acres),0);
+  const totalCost   = crops.reduce((s,c)=>s+(c.cost_per_acre*c.acres),0);
+  const avgMargin   = totalAcres > 0 ? totalMargin/totalAcres : 0;
+  document.getElementById('rTotals').innerHTML = `
+    <div class="stat-box"><div class="stat-val">${totalAcres.toFixed(0)}</div><div class="stat-label">Total Acres</div></div>
+    <div class="stat-box"><div class="stat-val ${cls(totalMargin)}">${$m(totalIncome)}</div><div class="stat-label">Total Revenue</div></div>
+    <div class="stat-box"><div class="stat-val">${$m(totalCost)}</div><div class="stat-label">Total Costs</div></div>
+    <div class="stat-box highlight"><div class="stat-val ${cls(totalMargin)}">${$m(totalMargin)}</div><div class="stat-label">Total Net Margin</div></div>
+    <div class="stat-box"><div class="stat-val ${cls(avgMargin)}">${$m(avgMargin)}</div><div class="stat-label">Avg Margin / Acre</div></div>
+  `;
+
+  /* E. Decisions */
+  const decisions = [];
+  crops.forEach(c => {
+    if (c.acres <= 0) return;
+    if (c.margin_per_acre < 0) decisions.push(`${c.name}: Margin/acre is negative — review cost structure.`);
+    if (c.relation === 'Unfavorable') decisions.push(`${c.name}: Price is below break-even ($${c.break_even.toFixed(2)}/bu). Consider price protection or reducing acres.`);
+    const newFertCost = c.fertilizer * 1.1;
+    const fertImpact  = newFertCost - c.fertilizer;
+    if (c.yield_bu > 0 && fertImpact > 0) decisions.push(`${c.name}: A +10% fertilizer increase costs $${fertImpact.toFixed(2)}/acre. Verify yield response justifies the spend.`);
+  });
+  if (crops.length > 1) {
+    const best = crops.slice().sort((a,b)=>b.margin_per_acre - a.margin_per_acre)[0];
+    if (best.margin_per_acre > 0) decisions.push(`Best margin/acre this season: ${best.name} at ${$m(best.margin_per_acre)}. Consider expanding if agronomically feasible.`);
+  }
+  if (totalMargin < 0) decisions.push('Overall farm margin is negative. Prioritize cost reduction and price risk management before the next season.');
+  if (decisions.length === 0) decisions.push('Margins across all crops are positive and prices are above break-even. Maintain current mix and monitor input prices.');
+
+  document.getElementById('rDecisions').innerHTML = decisions.map(d=>`<li>${d}</li>`).join('');
+
+  document.getElementById('reportEmpty').style.display = 'none';
+  document.getElementById('reportContent').style.display = 'block';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HISTORY
+══════════════════════════════════════════════════════════════ */
+async function loadHistory() {
+  const el = document.getElementById('historyList');
+  el.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><p>Fetching from database…</p></div>';
+  try {
+    const res  = await fetch(`${API}/api/reports`);
+    const data = await res.json();
+    if (!data.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">🌿</div><p>No reports yet. Generate one from the New Report tab.</p></div>';
+      return;
+    }
+    el.innerHTML = data.map(r => `
+      <div class="history-row">
+        <div>
+          <div style="font-size:1.5rem">🌾</div>
+        </div>
+        <div class="history-info">
+          <div class="history-name">${r.farmer_name} — ${r.year}</div>
+          <div class="history-meta">${r.county} &nbsp;·&nbsp; ${new Date(r.created_at).toLocaleDateString()}</div>
+        </div>
+        <div>
+          <button class="btn btn-ghost btn-sm" onclick="loadReport(${r.id})">View</button>
+          &nbsp;
+          <button class="btn btn-sm" style="background:#fde0e0;color:var(--danger)" onclick="deleteReport(${r.id})">🗑</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>Could not connect to backend. Is <code>python server.py</code> running?</p></div>';
+  }
+}
+
+async function loadReport(id) {
+  try {
+    const res  = await fetch(`${API}/api/reports`);
+    const data = await res.json();
+    currentReportId = id;
+    renderReport(data.report, data.crops);
+    switchTab('report');
+  } catch(e) {
+    toast('Could not load report #' + id, true);
+  }
+}
+
+async function deleteReport(id) {
+  if (!confirm('Delete report #' + id + '?')) return;
+  try {
+    await fetch(API + '/reports/' + id, { method: 'DELETE' });
+    toast('Report #' + id + ' deleted.');
+    loadHistory();
+  } catch(e) { toast('Delete failed', true); }
+}
+
+async function deleteCurrentReport() {
+  if (!currentReportId) { toast('No saved report to delete.', true); return; }
+  await deleteReport(currentReportId);
+  document.getElementById('reportEmpty').style.display = '';
+  document.getElementById('reportContent').style.display = 'none';
+  currentReportId = null;
+  switchTab('history');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  DEFAULT_CROPS.forEach(c => addCrop(c));
+  updateCropCount();
+});
+</script>
+</body>
+</html>
